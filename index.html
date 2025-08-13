@@ -3,101 +3,126 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Clinical Instructor Wheel</title>
+<title>Clinical Instructor Picker</title>
 <style>
   body {
     font-family: Arial, sans-serif;
-    background: #f4f4f4;
-    margin: 0; padding: 0;
+    background: #f4f6f8;
+    color: #333;
     text-align: center;
+    padding: 20px;
   }
-  h1 { background: #0077cc; color: white; padding: 10px; margin: 0; }
-  .container { max-width: 1000px; margin: auto; padding: 15px; }
-  textarea { width: 100%; height: 100px; }
-  button {
-    padding: 10px 15px; margin: 5px;
-    background: #0077cc; color: white;
-    border: none; cursor: pointer;
-    border-radius: 4px;
+  h1 {
+    color: #1565c0;
   }
-  button:hover { background: #005fa3; }
-  canvas { background: white; border-radius: 50%; margin-top: 15px; }
-  table {
-    width: 100%; border-collapse: collapse; margin-top: 15px;
+  .container {
+    max-width: 1000px;
+    margin: auto;
+  }
+  canvas {
     background: white;
+    border-radius: 50%;
+    margin: 20px auto;
+    display: block;
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+  }
+  button {
+    background: #1565c0;
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    font-size: 16px;
+    margin: 5px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.3s;
+  }
+  button:hover {
+    background: #0d47a1;
+  }
+  button:active {
+    transform: scale(0.95);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: white;
+    box-shadow: 0 0 15px rgba(0,0,0,0.05);
   }
   th, td {
-    border: 1px solid #ccc; padding: 8px;
+    border: 1px solid #ddd;
+    padding: 8px;
   }
-  th { background: #0077cc; color: white; }
-  input, select {
-    padding: 5px; width: 95%;
+  th {
+    background: #1565c0;
+    color: white;
+  }
+  tr:nth-child(even) {
+    background: #f2f2f2;
+  }
+  .card {
+    background: white;
+    padding: 15px;
+    margin-top: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.05);
   }
 </style>
 </head>
 <body>
 
-<h1>Clinical Instructor Wheel</h1>
 <div class="container">
+  <h1>Clinical Instructor Picker</h1>
+  <textarea id="nameList" rows="4" style="width:100%;" placeholder="Enter Clinical Instructor names, separated by commas"></textarea><br>
+  <button onclick="loadNames()">Load Names into Wheel</button>
 
-  <!-- Editable Instructor List -->
-  <h3>Enter Clinical Instructors (one per line)</h3>
-  <textarea id="instructorList">Instructor 1
-Instructor 2
-Instructor 3</textarea><br>
-  <button onclick="updateWheel()">Update Wheel</button>
+  <div class="card">
+    <canvas id="wheelCanvas" width="400" height="400"></canvas><br>
+    <button onclick="spinWheel()">Spin Wheel</button>
+    <button onclick="removeWinner()">Remove Winner from Wheel</button>
+  </div>
 
-  <!-- Spin Button -->
-  <br><button onclick="spinWheel()">Spin Wheel</button>
-  <canvas id="wheelCanvas" width="400" height="400"></canvas>
+  <h3 id="winnerDisplay">Your Clinical Instructor: </h3>
 
-  <!-- Inputs for Clinician Info -->
-  <h3>Clinician Info</h3>
-  <input type="text" id="clinicianName" placeholder="Clinician Name"><br><br>
-  <label>Clinical Level:</label>
-  <select id="clinicalLevel">
-    <option value="42">42</option>
-    <option value="41">41</option>
-    <option value="32">32</option>
-    <option value="31">31</option>
-  </select><br><br>
-  <input type="text" id="clinicalProcedure" placeholder="Clinical Procedure"><br><br>
-
-  <!-- Results Table -->
-  <h3>Spin Results</h3>
-  <table id="resultsTable">
-    <thead>
-      <tr>
-        <th>Clinician Name</th>
-        <th>Clinical Level</th>
-        <th>Time/Date Taken</th>
-        <th>Clinical Procedure</th>
-        <th>Clinical Instructor</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
+  <div class="card">
+    <h3>Results Table</h3>
+    <button onclick="saveCSV()">Save CSV</button>
+    <button onclick="window.print()">Print</button>
+    <button onclick="resetTable()">Reset Table</button>
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th>Clinician Name</th>
+          <th>Clinical Level</th>
+          <th>Time/Date Taken</th>
+          <th>Clinical Procedure</th>
+          <th>Clinical Instructor</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
-let names = ["Instructor 1", "Instructor 2", "Instructor 3"];
+let names = [];
 let startAngle = 0;
-let arc = Math.PI / (names.length / 2);
+let arc = 0;
 let spinTimeout = null;
-let spinAngleStart = 10;
+let spinAngleStart = 0;
 let spinTime = 0;
 let spinTimeTotal = 0;
 let ctx;
 
-function updateWheel() {
-  const list = document.getElementById("instructorList").value.trim();
-  names = list.split("\n").filter(n => n.trim() !== "");
+function loadNames() {
+  const text = document.getElementById("nameList").value.trim();
+  names = text ? text.split(",").map(n => n.trim()).filter(n => n) : [];
   arc = Math.PI / (names.length / 2);
-  drawWheel();
+  drawRouletteWheel();
 }
 
-function drawWheel() {
+function drawRouletteWheel() {
   const canvas = document.getElementById("wheelCanvas");
   if (canvas.getContext) {
     const outsideRadius = 180;
@@ -105,26 +130,29 @@ function drawWheel() {
     const insideRadius = 30;
     ctx = canvas.getContext("2d");
     ctx.clearRect(0,0,400,400);
+
     ctx.strokeStyle = "black";
     ctx.lineWidth = 2;
-    ctx.font = "16px Arial";
+    ctx.font = 'bold 14px Arial';
+
     for(let i = 0; i < names.length; i++) {
       const angle = startAngle + i * arc;
-      ctx.fillStyle = i % 2 === 0 ? "#ffcc00" : "#ff9900";
+      ctx.fillStyle = i % 2 === 0 ? "#42a5f5" : "#90caf9";
       ctx.beginPath();
       ctx.arc(200, 200, outsideRadius, angle, angle + arc, false);
       ctx.arc(200, 200, insideRadius, angle + arc, angle, true);
       ctx.stroke();
       ctx.fill();
       ctx.save();
-      ctx.fillStyle = "black";
+      ctx.fillStyle = "white";
       ctx.translate(200 + Math.cos(angle + arc / 2) * textRadius,
                     200 + Math.sin(angle + arc / 2) * textRadius);
-      ctx.rotate(angle + arc / 2 + Math.PI / 2);
+      ctx.rotate(angle + arc / 2);
       const text = names[i];
       ctx.fillText(text, -ctx.measureText(text).width / 2, 0);
       ctx.restore();
     }
+
     // Arrow
     ctx.fillStyle = "red";
     ctx.beginPath();
@@ -155,7 +183,7 @@ function rotateWheel() {
   }
   const spinAngle = spinAngleStart - easeOut(spinTime, 0, spinAngleStart, spinTimeTotal);
   startAngle += (spinAngle * Math.PI / 180);
-  drawWheel();
+  drawRouletteWheel();
   spinTimeout = setTimeout(rotateWheel, 30);
 }
 
@@ -163,13 +191,22 @@ function stopRotateWheel() {
   clearTimeout(spinTimeout);
   const degrees = startAngle * 180 / Math.PI + 90;
   const arcd = arc * 180 / Math.PI;
-  const index = Math.floor((360 - (degrees % 360)) / arcd) % names.length;
-  ctx.save();
-  ctx.font = "bold 20px Arial";
+  const index = Math.floor((360 - (degrees % 360)) / arcd);
   const winner = names[index];
-  alert("Winner: " + winner);
-  ctx.restore();
-  addResultToTable(winner);
+  document.getElementById("winnerDisplay").innerText = "Your Clinical Instructor: " + winner;
+
+  const clinicianName = prompt("Enter Clinician Name:");
+  const clinicalLevel = prompt("Enter Clinical Level (42/41/32/31):");
+  const procedure = prompt("Enter Clinical Procedure:");
+  const now = new Date().toLocaleString();
+
+  const tableBody = document.querySelector("#resultsTable tbody");
+  const row = tableBody.insertRow();
+  row.insertCell(0).innerText = clinicianName || "-";
+  row.insertCell(1).innerText = clinicalLevel || "-";
+  row.insertCell(2).innerText = now;
+  row.insertCell(3).innerText = procedure || "-";
+  row.insertCell(4).innerText = winner;
 }
 
 function easeOut(t, b, c, d) {
@@ -178,26 +215,36 @@ function easeOut(t, b, c, d) {
   return b+c*(tc + -3*ts + 3*t);
 }
 
-function addResultToTable(instructor) {
-  const clinicianName = document.getElementById("clinicianName").value.trim();
-  const clinicalLevel = document.getElementById("clinicalLevel").value;
-  const clinicalProcedure = document.getElementById("clinicalProcedure").value.trim();
-  const dateTime = new Date().toLocaleString();
-  if (!clinicianName || !clinicalProcedure) {
-    alert("Please fill in Clinician Name and Procedure before spinning.");
-    return;
+function removeWinner() {
+  const currentWinner = document.getElementById("winnerDisplay").innerText.replace("Your Clinical Instructor: ", "").trim();
+  if (currentWinner && names.includes(currentWinner)) {
+    names = names.filter(n => n !== currentWinner);
+    arc = Math.PI / (names.length / 2);
+    drawRouletteWheel();
+    document.getElementById("winnerDisplay").innerText = "Your Clinical Instructor: ";
   }
-  const table = document.getElementById("resultsTable").querySelector("tbody");
-  const row = table.insertRow();
-  row.insertCell(0).innerText = clinicianName;
-  row.insertCell(1).innerText = clinicalLevel;
-  row.insertCell(2).innerText = dateTime;
-  row.insertCell(3).innerText = clinicalProcedure;
-  row.insertCell(4).innerText = instructor;
 }
 
-drawWheel();
-</script>
+function saveCSV() {
+  let csv = [];
+  const rows = document.querySelectorAll("#resultsTable tr");
+  rows.forEach(row => {
+    const cols = row.querySelectorAll("td, th");
+    const rowData = [];
+    cols.forEach(col => rowData.push(col.innerText));
+    csv.push(rowData.join(","));
+  });
+  const blob = new Blob([csv.join("\n")], { type: "text/csv" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "results.csv";
+  link.click();
+}
 
+function resetTable() {
+  document.querySelector("#resultsTable tbody").innerHTML = "";
+}
+
+</script>
 </body>
-  </html>
+</html>
