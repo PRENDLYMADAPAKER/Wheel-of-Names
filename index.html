@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clinical Instructor Wheel</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    margin: 0; padding: 0;
+    text-align: center;
+  }
+  h1 { background: #0077cc; color: white; padding: 10px; margin: 0; }
+  .container { max-width: 1000px; margin: auto; padding: 15px; }
+  textarea { width: 100%; height: 100px; }
+  button {
+    padding: 10px 15px; margin: 5px;
+    background: #0077cc; color: white;
+    border: none; cursor: pointer;
+    border-radius: 4px;
+  }
+  button:hover { background: #005fa3; }
+  canvas { background: white; border-radius: 50%; margin-top: 15px; }
+  table {
+    width: 100%; border-collapse: collapse; margin-top: 15px;
+    background: white;
+  }
+  th, td {
+    border: 1px solid #ccc; padding: 8px;
+  }
+  th { background: #0077cc; color: white; }
+  input, select {
+    padding: 5px; width: 95%;
+  }
+</style>
+</head>
+<body>
+
+<h1>Clinical Instructor Wheel</h1>
+<div class="container">
+
+  <!-- Editable Instructor List -->
+  <h3>Enter Clinical Instructors (one per line)</h3>
+  <textarea id="instructorList">Instructor 1
+Instructor 2
+Instructor 3</textarea><br>
+  <button onclick="updateWheel()">Update Wheel</button>
+
+  <!-- Spin Button -->
+  <br><button onclick="spinWheel()">Spin Wheel</button>
+  <canvas id="wheelCanvas" width="400" height="400"></canvas>
+
+  <!-- Inputs for Clinician Info -->
+  <h3>Clinician Info</h3>
+  <input type="text" id="clinicianName" placeholder="Clinician Name"><br><br>
+  <label>Clinical Level:</label>
+  <select id="clinicalLevel">
+    <option value="42">42</option>
+    <option value="41">41</option>
+    <option value="32">32</option>
+    <option value="31">31</option>
+  </select><br><br>
+  <input type="text" id="clinicalProcedure" placeholder="Clinical Procedure"><br><br>
+
+  <!-- Results Table -->
+  <h3>Spin Results</h3>
+  <table id="resultsTable">
+    <thead>
+      <tr>
+        <th>Clinician Name</th>
+        <th>Clinical Level</th>
+        <th>Time/Date Taken</th>
+        <th>Clinical Procedure</th>
+        <th>Clinical Instructor</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+</div>
+
+<script>
+let names = ["Instructor 1", "Instructor 2", "Instructor 3"];
+let startAngle = 0;
+let arc = Math.PI / (names.length / 2);
+let spinTimeout = null;
+let spinAngleStart = 10;
+let spinTime = 0;
+let spinTimeTotal = 0;
+let ctx;
+
+function updateWheel() {
+  const list = document.getElementById("instructorList").value.trim();
+  names = list.split("\n").filter(n => n.trim() !== "");
+  arc = Math.PI / (names.length / 2);
+  drawWheel();
+}
+
+function drawWheel() {
+  const canvas = document.getElementById("wheelCanvas");
+  if (canvas.getContext) {
+    const outsideRadius = 180;
+    const textRadius = 140;
+    const insideRadius = 30;
+    ctx = canvas.getContext("2d");
+    ctx.clearRect(0,0,400,400);
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 2;
+    ctx.font = "16px Arial";
+    for(let i = 0; i < names.length; i++) {
+      const angle = startAngle + i * arc;
+      ctx.fillStyle = i % 2 === 0 ? "#ffcc00" : "#ff9900";
+      ctx.beginPath();
+      ctx.arc(200, 200, outsideRadius, angle, angle + arc, false);
+      ctx.arc(200, 200, insideRadius, angle + arc, angle, true);
+      ctx.stroke();
+      ctx.fill();
+      ctx.save();
+      ctx.fillStyle = "black";
+      ctx.translate(200 + Math.cos(angle + arc / 2) * textRadius,
+                    200 + Math.sin(angle + arc / 2) * textRadius);
+      ctx.rotate(angle + arc / 2 + Math.PI / 2);
+      const text = names[i];
+      ctx.fillText(text, -ctx.measureText(text).width / 2, 0);
+      ctx.restore();
+    }
+    // Arrow
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.moveTo(200 - 4, 20);
+    ctx.lineTo(200 + 4, 20);
+    ctx.lineTo(200 + 4, 40);
+    ctx.lineTo(200 + 9, 40);
+    ctx.lineTo(200 + 0, 60);
+    ctx.lineTo(200 - 9, 40);
+    ctx.lineTo(200 - 4, 40);
+    ctx.lineTo(200 - 4, 20);
+    ctx.fill();
+  }
+}
+
+function spinWheel() {
+  spinAngleStart = Math.random() * 10 + 10;
+  spinTime = 0;
+  spinTimeTotal = Math.random() * 3000 + 4000;
+  rotateWheel();
+}
+
+function rotateWheel() {
+  spinTime += 30;
+  if (spinTime >= spinTimeTotal) {
+    stopRotateWheel();
+    return;
+  }
+  const spinAngle = spinAngleStart - easeOut(spinTime, 0, spinAngleStart, spinTimeTotal);
+  startAngle += (spinAngle * Math.PI / 180);
+  drawWheel();
+  spinTimeout = setTimeout(rotateWheel, 30);
+}
+
+function stopRotateWheel() {
+  clearTimeout(spinTimeout);
+  const degrees = startAngle * 180 / Math.PI + 90;
+  const arcd = arc * 180 / Math.PI;
+  const index = Math.floor((360 - (degrees % 360)) / arcd) % names.length;
+  ctx.save();
+  ctx.font = "bold 20px Arial";
+  const winner = names[index];
+  alert("Winner: " + winner);
+  ctx.restore();
+  addResultToTable(winner);
+}
+
+function easeOut(t, b, c, d) {
+  const ts = (t/=d)*t;
+  const tc = ts*t;
+  return b+c*(tc + -3*ts + 3*t);
+}
+
+function addResultToTable(instructor) {
+  const clinicianName = document.getElementById("clinicianName").value.trim();
+  const clinicalLevel = document.getElementById("clinicalLevel").value;
+  const clinicalProcedure = document.getElementById("clinicalProcedure").value.trim();
+  const dateTime = new Date().toLocaleString();
+  if (!clinicianName || !clinicalProcedure) {
+    alert("Please fill in Clinician Name and Procedure before spinning.");
+    return;
+  }
+  const table = document.getElementById("resultsTable").querySelector("tbody");
+  const row = table.insertRow();
+  row.insertCell(0).innerText = clinicianName;
+  row.insertCell(1).innerText = clinicalLevel;
+  row.insertCell(2).innerText = dateTime;
+  row.insertCell(3).innerText = clinicalProcedure;
+  row.insertCell(4).innerText = instructor;
+}
+
+drawWheel();
+</script>
+
+</body>
+  </html>
